@@ -1,0 +1,20 @@
+# Visual Studio build files
+**/bin/
+**/obj/
+**/.vs/
+**/*.suo
+**/*.user
+**/*.VC.db
+**/*.VC.opendb
+**/*.ipch
+**/*.vsidx
+**/*.log
+**/*.tmp
+**/*.cache
+
+# JUCE Generated Builds
+**/Builds/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
