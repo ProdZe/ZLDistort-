@@ -71,7 +71,7 @@ void ZLDistortV2AudioProcessorEditor::resized()
     // 📏 Position the sliders and dropdown
     distortionSlider.setBounds(50, 50, 300, 40);
     dryWetSlider.setBounds(50, 110, 300, 40);
-    distortionModeBox.setBounds(150, 180, 100, 30); // Dropdown positioning
+    distortionModeBox.setBounds(235, 300, 120, 30); // Dropdown positioning
 
    // Position the sliders
     distortionSlider.setBounds(50, 100, getWidth() - 100, 50); // Distortion Amount
