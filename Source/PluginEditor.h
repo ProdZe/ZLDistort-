@@ -29,8 +29,11 @@ private:
     // access the processor object that created it.
     ZLDistortV2AudioProcessor& audioProcessor;
 
-    juce::Slider gainSlider;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
+    juce::Slider distortionSlider;
+    juce::Slider dryWetSlider;
+
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> distortionAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> dryWetAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ZLDistortV2AudioProcessorEditor)
 };

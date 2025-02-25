@@ -159,20 +159,28 @@ void ZLDistortV2AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         auto* channelData = buffer.getWritePointer (channel);
 
         // ..do something to the data...
+       
+        // Retrieve parameter values inside the processBlock
+        float distortionAmount = parameters.getRawParameterValue("DISTORTION")->load();
+        float dryWet = parameters.getRawParameterValue("DRYWET")->load();
+
         //Distortion's code implamentation adds another for loop for samples
 
         for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
         {
-            float inputSample = channelData[sample]; // Read the sample
-            float gain = gainParam->load(); // Gain factor (you can later link this to a GUI knob)
+            float drySample = channelData[sample]; // Original signal
 
-            // Apply exponential distortion 
-           
-            channelData[sample] = std::copysign(1.0f, inputSample) * (1 - std::exp(-std::abs(inputSample * gain)));
-            
+            // Apply distortion (tanh for soft clipping)
+            float distortedSample = std::tanh(drySample * distortionAmount);
+
+            // Dry/Wet Mix
+            channelData[sample] = (1.0f - dryWet) * drySample + dryWet * distortedSample;         
         }
 
     }
+    // Clear any extra output channels
+    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
 }
 
 //==============================================================================
@@ -210,12 +218,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout ZLDistortV2AudioProcessor::c
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    // Add the Gain parameter (you can customize the range and default value)
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("GAIN",   // parameter ID
-        "Gain",   // parameter name
-        0.0f,     // minimum value
-        10.0f,    // maximum value
-        5.0f));   // default value
+    // Distortion Amount Parameter
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "DISTORTION", "Distortion", 0.0f, 10.0f, 5.0f));
+
+    // Dry/Wet Mix Parameter
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "DRYWET", "Dry/Wet", 0.0f, 1.0f, 0.5f)); // 0 = dry, 1 = wet
 
     return { params.begin(), params.end() };
 }

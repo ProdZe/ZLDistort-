@@ -16,17 +16,24 @@ ZLDistortV2AudioProcessorEditor::ZLDistortV2AudioProcessorEditor (ZLDistortV2Aud
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
 
-    // Create the gain slider and attach it to the Gain parameter
-    gainSlider.setSliderStyle(juce::Slider::Rotary);
-    gainSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
-    gainSlider.setRange(0.0, 10.0);
-    addAndMakeVisible(gainSlider);
+    // Create the slider and attach it to the distortion parameter
+    distortionSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    distortionSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+    distortionSlider.setRange(0.0, 10.0);
+    addAndMakeVisible(distortionSlider);
 
-    // Attach the slider to the GAIN parameter
-    gainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.parameters, "GAIN", gainSlider);
+    // Attach the slider to the distortion parameter
+    distortionAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.parameters, "DISTORTION", distortionSlider);
 
-    setSize (400, 300);
+    // Dry/Wet Slider
+    dryWetSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    dryWetSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+    addAndMakeVisible(dryWetSlider);
+    dryWetAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.parameters, "DRYWET", dryWetSlider);
+
+    setSize (600, 400);
 }
 
 ZLDistortV2AudioProcessorEditor::~ZLDistortV2AudioProcessorEditor()
@@ -41,13 +48,15 @@ void ZLDistortV2AudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colours::white);
     g.setFont (juce::FontOptions (25.0f));
-    g.drawFittedText ("GAIN", 0, 70, getWidth(), 20, juce::Justification::centred, 1);
+    g.drawFittedText ("DISTORT", 0, 70, getWidth(), 20, juce::Justification::centred, 1);
 }
 
 void ZLDistortV2AudioProcessorEditor::resized()
 {
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..
-    // Position the gain slider in the middle
-    gainSlider.setBounds(getWidth() / 2 - 50, getHeight() / 2 - 50, 100, 100);
+    
+   // Position the sliders
+    distortionSlider.setBounds(50, 100, getWidth() - 100, 50); // Distortion Amount
+    dryWetSlider.setBounds(50, 200, getWidth() - 100, 50);     // Dry/Wet Mix
 }
