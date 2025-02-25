@@ -20,6 +20,15 @@ public:
     ZLDistortV2AudioProcessor();
     ~ZLDistortV2AudioProcessor() override;
 
+    enum DistortionType
+    {
+        HardClip = 0,
+        Foldback,
+        Exponential,
+        BitCrush,
+        Wavefold
+    };
+
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -63,6 +72,7 @@ public:
 private:
     //==============================================================================
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ZLDistortV2AudioProcessor)
 };

@@ -1,4 +1,4 @@
-/*
+﻿/*
   ==============================================================================
 
     This file contains the basic framework code for a JUCE plugin editor.
@@ -33,6 +33,18 @@ ZLDistortV2AudioProcessorEditor::ZLDistortV2AudioProcessorEditor (ZLDistortV2Aud
     dryWetAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.parameters, "DRYWET", dryWetSlider);
 
+    // 🔄 ComboBox for Distortion Modes
+    distortionModeBox.addItem("Hard Clip", 1);
+    distortionModeBox.addItem("Foldback", 2);
+    distortionModeBox.addItem("Exponential", 3);
+    distortionModeBox.addItem("Bit Crush", 4);
+    distortionModeBox.addItem("Wavefold", 5);
+    addAndMakeVisible(distortionModeBox);
+
+    // Attach ComboBox to ValueTreeState
+    distortionModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.parameters, "DISTORTION_MODE", distortionModeBox);
+
     setSize (600, 400);
 }
 
@@ -48,7 +60,7 @@ void ZLDistortV2AudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colours::white);
     g.setFont (juce::FontOptions (25.0f));
-    g.drawFittedText ("DISTORT", 0, 70, getWidth(), 20, juce::Justification::centred, 1);
+    g.drawFittedText ("DISTORTION", 0, 70, getWidth(), 20, juce::Justification::centred, 1);
 }
 
 void ZLDistortV2AudioProcessorEditor::resized()
@@ -56,6 +68,11 @@ void ZLDistortV2AudioProcessorEditor::resized()
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..
     
+    // 📏 Position the sliders and dropdown
+    distortionSlider.setBounds(50, 50, 300, 40);
+    dryWetSlider.setBounds(50, 110, 300, 40);
+    distortionModeBox.setBounds(150, 180, 100, 30); // Dropdown positioning
+
    // Position the sliders
     distortionSlider.setBounds(50, 100, getWidth() - 100, 50); // Distortion Amount
     dryWetSlider.setBounds(50, 200, getWidth() - 100, 50);     // Dry/Wet Mix

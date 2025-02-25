@@ -1,4 +1,4 @@
-/*
+﻿/*
   ==============================================================================
 
     This file contains the basic framework code for a JUCE plugin editor.
@@ -32,8 +32,12 @@ private:
     juce::Slider distortionSlider;
     juce::Slider dryWetSlider;
 
+    // 🔄 ComboBox for Distortion Modes (Dropdown)
+    juce::ComboBox distortionModeBox;
+
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> distortionAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> dryWetAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> distortionModeAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ZLDistortV2AudioProcessorEditor)
 };

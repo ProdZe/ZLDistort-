@@ -1,4 +1,4 @@
-/*
+﻿/*
   ==============================================================================
 
     This file contains the basic framework code for a JUCE plugin processor.
@@ -22,10 +22,11 @@ ZLDistortV2AudioProcessor::ZLDistortV2AudioProcessor()
                      #endif
                        ),
 #endif
-
+   
     parameters(*this, nullptr, "PARAMETERS", createParameterLayout())
+   
 {
-    gainParam = parameters.getRawParameterValue("GAIN");
+    
 }
 
 ZLDistortV2AudioProcessor::~ZLDistortV2AudioProcessor()
@@ -163,15 +164,55 @@ void ZLDistortV2AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         // Retrieve parameter values inside the processBlock
         float distortionAmount = parameters.getRawParameterValue("DISTORTION")->load();
         float dryWet = parameters.getRawParameterValue("DRYWET")->load();
+        // Prevent complete silence if distortionAmount is 0
+        if (distortionAmount <= 0.01f)
+            distortionAmount = 0.01f;
 
         //Distortion's code implamentation adds another for loop for samples
 
         for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
         {
             float drySample = channelData[sample]; // Original signal
+            float distortedSample = drySample;     // Default to dry sample
+            int distortionMode = static_cast<int>(parameters.getRawParameterValue("DISTORTION_MODE")->load());
 
-            // Apply distortion (tanh for soft clipping)
-            float distortedSample = std::tanh(drySample * distortionAmount);
+            // Apply distortion based on selected mode
+            switch (distortionMode)
+            {
+            case 0: // Hard Clip
+                distortedSample = juce::jlimit(-0.5f, 0.5f, drySample * distortionAmount);
+                break;
+
+            case 1: // Foldback Distortion
+                if (drySample > 0.5f || drySample < -0.5f)
+                    distortedSample = std::abs(std::fmod(drySample - 0.5f, 1.0f) - 0.5f);
+                else
+                    distortedSample = drySample;
+                distortedSample *= distortionAmount;
+                break;
+
+            case 2: // Exponential Distortion
+                distortedSample = std::copysign(1.0f, drySample) * (1 - std::exp(-std::abs(drySample * distortionAmount)));
+                break;
+
+            case 3: // Bit Crush
+                distortedSample = std::round(drySample * 8.0f) / 8.0f;
+                break;
+
+            case 4: // Wavefold Distortion
+                if (drySample > 0.5f)
+                    distortedSample = 1.0f - (drySample - 0.5f);
+                else if (drySample < -0.5f)
+                    distortedSample = -1.0f - (drySample + 0.5f);
+                else
+                    distortedSample = drySample;
+                distortedSample *= distortionAmount;
+                break;
+
+            default: // Fallback: No distortion
+                distortedSample = drySample;
+                break;
+            }
 
             // Dry/Wet Mix
             channelData[sample] = (1.0f - dryWet) * drySample + dryWet * distortedSample;         
@@ -225,6 +266,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout ZLDistortV2AudioProcessor::c
     // Dry/Wet Mix Parameter
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "DRYWET", "Dry/Wet", 0.0f, 1.0f, 0.5f)); // 0 = dry, 1 = wet
+
+    // 🔄 Distortion Mode ComboBox
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "DISTORTION_MODE", "Distortion Mode", juce::StringArray{ "Hard Clip", "Foldback", "Exponential", "Bit Crush", "Wavefold" }, 0));
 
     return { params.begin(), params.end() };
 }
