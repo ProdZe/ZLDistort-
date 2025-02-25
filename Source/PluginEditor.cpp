@@ -61,6 +61,14 @@ void ZLDistortV2AudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colours::white);
     g.setFont (juce::FontOptions (25.0f));
     g.drawFittedText ("DISTORTION", 0, 70, getWidth(), 20, juce::Justification::centred, 1);
+
+    g.setFont(juce::Font(15.0f));
+
+    // "Dry" label to the left of Dry/Wet slider
+    g.drawFittedText("Dry", 50, 250, 50, 20, juce::Justification::centred, 1);
+
+    // "Wet" label to the right of Dry/Wet slider
+    g.drawFittedText("Wet", getWidth() - 100, 250, 50, 20, juce::Justification::centred, 1);
 }
 
 void ZLDistortV2AudioProcessorEditor::resized()
