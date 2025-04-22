@@ -1,275 +1,203 @@
-﻿/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
-*/
-
-#include "PluginProcessor.h"
+﻿#include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include <cmath>
 
 //==============================================================================
 ZLDistortV2AudioProcessor::ZLDistortV2AudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
-     : AudioProcessor (BusesProperties()
-                     #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
-                       .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                      #endif
-                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
-                     #endif
-                       ),
+    : AudioProcessor(BusesProperties()
+#if ! JucePlugin_IsMidiEffect
+#if ! JucePlugin_IsSynth
+        .withInput("Input", juce::AudioChannelSet::stereo(), true)
 #endif
-   
+        .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+#endif
+    ),
+#endif
     parameters(*this, nullptr, "PARAMETERS", createParameterLayout())
-   
 {
-    
 }
 
-ZLDistortV2AudioProcessor::~ZLDistortV2AudioProcessor()
-{
-}
+ZLDistortV2AudioProcessor::~ZLDistortV2AudioProcessor() {}
 
 //==============================================================================
-const juce::String ZLDistortV2AudioProcessor::getName() const
-{
-    return JucePlugin_Name;
-}
-
-bool ZLDistortV2AudioProcessor::acceptsMidi() const
-{
-   #if JucePlugin_WantsMidiInput
-    return true;
-   #else
-    return false;
-   #endif
-}
-
-bool ZLDistortV2AudioProcessor::producesMidi() const
-{
-   #if JucePlugin_ProducesMidiOutput
-    return true;
-   #else
-    return false;
-   #endif
-}
-
-bool ZLDistortV2AudioProcessor::isMidiEffect() const
-{
-   #if JucePlugin_IsMidiEffect
-    return true;
-   #else
-    return false;
-   #endif
-}
-
-double ZLDistortV2AudioProcessor::getTailLengthSeconds() const
-{
-    return 0.0;
-}
-
-int ZLDistortV2AudioProcessor::getNumPrograms()
-{
-    return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
-                // so this should be at least 1, even if you're not really implementing programs.
-}
-
-int ZLDistortV2AudioProcessor::getCurrentProgram()
-{
-    return 0;
-}
-
-void ZLDistortV2AudioProcessor::setCurrentProgram (int index)
-{
-}
-
-const juce::String ZLDistortV2AudioProcessor::getProgramName (int index)
-{
-    return {};
-}
-
-void ZLDistortV2AudioProcessor::changeProgramName (int index, const juce::String& newName)
-{
-}
+const juce::String ZLDistortV2AudioProcessor::getName() const { return JucePlugin_Name; }
+bool ZLDistortV2AudioProcessor::acceptsMidi() const { return JucePlugin_WantsMidiInput; }
+bool ZLDistortV2AudioProcessor::producesMidi() const { return JucePlugin_ProducesMidiOutput; }
+bool ZLDistortV2AudioProcessor::isMidiEffect() const { return JucePlugin_IsMidiEffect; }
+double ZLDistortV2AudioProcessor::getTailLengthSeconds() const { return 0.0; }
+int ZLDistortV2AudioProcessor::getNumPrograms() { return 1; }
+int ZLDistortV2AudioProcessor::getCurrentProgram() { return 0; }
+void ZLDistortV2AudioProcessor::setCurrentProgram(int) {}
+const juce::String ZLDistortV2AudioProcessor::getProgramName(int) { return {}; }
+void ZLDistortV2AudioProcessor::changeProgramName(int, const juce::String&) {}
 
 //==============================================================================
-void ZLDistortV2AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void ZLDistortV2AudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    std::vector<float> freqs = {
+        155.56f, 174.61f, 207.65f, 233.08f, 277.18f,
+        311.13f, 349.23f, 415.30f, 466.16f, 554.37f,
+        622.25f, 698.46f, 830.61f, 932.33f, 1108.73f,
+        1244.51f, 1396.91f, 1661.22f, 1864.66f, 2217.46f
+    };
+
+    filters.clear();
+
+    juce::dsp::ProcessSpec spec{
+        sampleRate,
+        static_cast<juce::uint32> (samplesPerBlock),
+        static_cast<juce::uint32> (getTotalNumInputChannels())
+    };
+
+    for (auto freq : freqs)
+    {
+        filters.push_back({
+            juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, freq, 2.0f)
+            });
+        filters.back().prepare(spec);
+    }
 }
 
-void ZLDistortV2AudioProcessor::releaseResources()
+void ZLDistortV2AudioProcessor::releaseResources() {}
+
+bool ZLDistortV2AudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-    // When playback stops, you can use this as an opportunity to free up any
-    // spare memory, etc.
+    // only allow mono or stereo, and require input == output
+    const auto& outSet = layouts.getMainOutputChannelSet();
+    const auto& inSet = layouts.getMainInputChannelSet();
+
+    if ((outSet == juce::AudioChannelSet::mono() ||
+        outSet == juce::AudioChannelSet::stereo())
+        && inSet == outSet)
+    {
+        return true;
+    }
+
+    return false;
 }
 
-#ifndef JucePlugin_PreferredChannelConfigurations
-bool ZLDistortV2AudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
-{
-  #if JucePlugin_IsMidiEffect
-    juce::ignoreUnused (layouts);
-    return true;
-  #else
-    // This is the place where you check if the layout is supported.
-    // In this template code we only support mono or stereo.
-    // Some plugin hosts, such as certain GarageBand versions, will only
-    // load plugins that support stereo bus layouts.
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
-        return false;
 
-    // This checks if the input layout matches the output layout
-   #if ! JucePlugin_IsSynth
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
-        return false;
-   #endif
-
-    return true;
-  #endif
-}
-#endif
-
-void ZLDistortV2AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void ZLDistortV2AudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
+    auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    // In case we have more outputs than inputs, this code clears any output
-    // channels that didn't contain input data, (because these aren't
-    // guaranteed to be empty - they may contain garbage).
-    // This is here to avoid people getting screaming feedback
-    // when they first compile a plugin, but obviously you don't need to keep
-    // this code if your algorithm always overwrites all the output channels.
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
+        buffer.clear(i, 0, buffer.getNumSamples());
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
+    float dryWet = parameters.getRawParameterValue("DRYWET")->load();
+    float distortionAmount = parameters.getRawParameterValue("DISTORTION")->load();
+    if (distortionAmount < 0.01f) distortionAmount = 0.02f;
+
+    int distortionMode = int(parameters.getRawParameterValue("DISTORTION_MODE")->load());
+
+    if (distortionMode == DistortionType::Harmonic)
     {
-        auto* channelData = buffer.getWritePointer (channel);
+        for (int ch = 0; ch < totalNumInputChannels; ++ch)
+            doHarmonicDistortion(buffer, ch, distortionAmount, dryWet);
+        return;
+    }
 
-        // ..do something to the data...
-       
-        // Retrieve parameter values inside the processBlock
-        float distortionAmount = parameters.getRawParameterValue("DISTORTION")->load();
-        float dryWet = parameters.getRawParameterValue("DRYWET")->load();
-        // Prevent complete silence if distortionAmount is 0
-        if (distortionAmount <= 0.01f)
-            distortionAmount = 0.01f;
-
-        //Distortion's code implamentation adds another for loop for samples
-
-        for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+    for (int ch = 0; ch < totalNumInputChannels; ++ch)
+    {
+        auto* data = buffer.getWritePointer(ch);
+        for (int s = 0; s < buffer.getNumSamples(); ++s)
         {
-            float drySample = channelData[sample]; // Original signal
-            float distortedSample = drySample;     // Default to dry sample
-            int distortionMode = static_cast<int>(parameters.getRawParameterValue("DISTORTION_MODE")->load());
+            float dry = data[s];
+            float shaped = dry;
 
-            // Apply distortion based on selected mode
             switch (distortionMode)
             {
-            case 0: // Hard Clip
-                distortedSample = juce::jlimit(-0.5f, 0.5f, drySample * distortionAmount);
+            case DistortionType::HardClip:
+                shaped = juce::jlimit(-0.5f, 0.5f, dry * distortionAmount);
                 break;
-
-            case 1: // Foldback Distortion
-                if (drySample > 0.5f || drySample < -0.5f)
-                    distortedSample = std::abs(std::fmod(drySample - 0.5f, 1.0f) - 0.5f);
-                else
-                    distortedSample = drySample;
-                distortedSample *= distortionAmount;
+            case DistortionType::Foldback:
+                if (dry > 0.5f || dry < -0.5f)
+                    shaped = std::abs(std::fmod(dry - 0.5f, 1.0f) - 0.5f);
+                shaped *= distortionAmount;
                 break;
-
-            case 2: // Exponential Distortion
-                distortedSample = std::copysign(1.0f, drySample) * (1 - std::exp(-std::abs(drySample * distortionAmount)));
+            case DistortionType::Exponential:
+                shaped = std::copysign(1.0f, dry)
+                    * (1.0f - std::exp(-std::abs(dry * distortionAmount)));
                 break;
-
-            case 3: // Bit Crush
-                distortedSample = std::round(drySample * 8.0f) / 8.0f;
+            case DistortionType::BitCrush:
+                shaped = std::round(dry * 8.0f) / 8.0f;
                 break;
-
-            case 4: // Wavefold Distortion
-                if (drySample > 0.5f)
-                    distortedSample = 1.0f - (drySample - 0.5f);
-                else if (drySample < -0.5f)
-                    distortedSample = -1.0f - (drySample + 0.5f);
-                else
-                    distortedSample = drySample;
-                distortedSample *= distortionAmount;
+            case DistortionType::Wavefold:
+                if (dry > 0.5f)      shaped = 1.0f - (dry - 0.5f);
+                else if (dry < -0.5f) shaped = -1.0f - (dry + 0.5f);
+                shaped *= distortionAmount;
                 break;
-
-            default: // Fallback: No distortion
-                distortedSample = drySample;
+            default:
                 break;
             }
 
-            // Dry/Wet Mix
-            channelData[sample] = (1.0f - dryWet) * drySample + dryWet * distortedSample;         
+            data[s] = dry * (1.0f - dryWet) + shaped * dryWet;
         }
-
     }
-    // Clear any extra output channels
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
 }
 
 //==============================================================================
-bool ZLDistortV2AudioProcessor::hasEditor() const
-{
-    return true; // (change this to false if you choose to not supply an editor)
-}
+bool ZLDistortV2AudioProcessor::hasEditor() const { return true; }
+juce::AudioProcessorEditor* ZLDistortV2AudioProcessor::createEditor() { return new ZLDistortV2AudioProcessorEditor(*this); }
+void ZLDistortV2AudioProcessor::getStateInformation(juce::MemoryBlock&) {}
+void ZLDistortV2AudioProcessor::setStateInformation(const void*, int) {}
 
-juce::AudioProcessorEditor* ZLDistortV2AudioProcessor::createEditor()
-{
-    return new ZLDistortV2AudioProcessorEditor (*this);
-}
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new ZLDistortV2AudioProcessor(); }
 
-//==============================================================================
-void ZLDistortV2AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
-{
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
-}
-
-void ZLDistortV2AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
-{
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
-}
-
-//==============================================================================
-// This creates new instances of the plugin..
-juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
-{
-    return new ZLDistortV2AudioProcessor();
-}
 juce::AudioProcessorValueTreeState::ParameterLayout ZLDistortV2AudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    // Distortion Amount Parameter
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "DISTORTION", "Distortion", 0.0f, 10.0f, 5.0f));
 
-    // Dry/Wet Mix Parameter
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "DRYWET", "Dry/Wet", 0.0f, 1.0f, 0.5f)); // 0 = dry, 1 = wet
+        "DRYWET", "Dry/Wet", 0.0f, 1.0f, 0.5f));
 
-    // 🔄 Distortion Mode ComboBox
     params.push_back(std::make_unique<juce::AudioParameterChoice>(
-        "DISTORTION_MODE", "Distortion Mode", juce::StringArray{ "Hard Clip", "Foldback", "Exponential", "Bit Crush", "Wavefold" }, 0));
+        "DISTORTION_MODE", "Distortion Mode",
+        juce::StringArray{ "Hard Clip", "Foldback", "Exponential", "Bit Crush", "Wavefold", "Harmonic" },
+        0));
 
     return { params.begin(), params.end() };
+}
+
+void ZLDistortV2AudioProcessor::doHarmonicDistortion(juce::AudioBuffer<float>& buffer,
+    int channel,
+    float distortionAmount,
+    float dryWet)
+{
+    if (filters.empty()) return;
+    auto numSamples = buffer.getNumSamples();
+    juce::AudioBuffer<float> harmBuf(1, numSamples);
+    harmBuf.clear();
+
+    for (auto& f : filters)
+    {
+        juce::AudioBuffer<float> tmp(1, numSamples);
+        tmp.copyFrom(0, 0, buffer, channel, 0, numSamples);
+
+        juce::dsp::AudioBlock<float> block(tmp);
+        juce::dsp::ProcessContextReplacing<float> ctx(block);
+        f.process(ctx);
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            auto x = tmp.getSample(0, i);
+            auto d = std::copysign(1.0f, x)
+                * (1.0f - std::exp(-std::abs(x * distortionAmount)));
+            harmBuf.addSample(0, i, d);
+        }
+    }
+
+    auto numBands = (float)filters.size();
+    for (int i = 0; i < numSamples; ++i)
+    {
+        float d = buffer.getSample(channel, i);
+        float h = harmBuf.getSample(0, i) / numBands;
+        buffer.setSample(channel, i, d * (1.0f - dryWet) + h * dryWet);
+    }
 }

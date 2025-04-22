@@ -1,87 +1,105 @@
-﻿/*
-  ==============================================================================
+﻿#include "PluginEditor.h"
 
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
-#include "PluginProcessor.h"
-#include "PluginEditor.h"
-
-//==============================================================================
-ZLDistortV2AudioProcessorEditor::ZLDistortV2AudioProcessorEditor (ZLDistortV2AudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p)
+ZLDistortV2AudioProcessorEditor::ZLDistortV2AudioProcessorEditor(ZLDistortV2AudioProcessor& p)
+    : AudioProcessorEditor(&p), processorRef(p)
 {
-    // Make sure that before the constructor has finished, you've set the
-    // editor's size to whatever you need it to be.
-
-    // Create the slider and attach it to the distortion parameter
-    distortionSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    //–– Distortion knob ––
+    distortionSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     distortionSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
-    distortionSlider.setRange(0.0, 10.0);
     addAndMakeVisible(distortionSlider);
+    distortionLabel.setText("Distortion", juce::dontSendNotification);
+    addAndMakeVisible(distortionLabel);
 
-    // Attach the slider to the distortion parameter
-    distortionAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.parameters, "DISTORTION", distortionSlider);
-
-    // Dry/Wet Slider
-    dryWetSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    //–– Dry/Wet knob ––
+    dryWetSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     dryWetSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
     addAndMakeVisible(dryWetSlider);
-    dryWetAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.parameters, "DRYWET", dryWetSlider);
+    dryWetLabel.setText("Dry/Wet", juce::dontSendNotification);
+    addAndMakeVisible(dryWetLabel);
 
-    // 🔄 ComboBox for Distortion Modes
-    distortionModeBox.addItem("Hard Clip", 1);
-    distortionModeBox.addItem("Foldback", 2);
-    distortionModeBox.addItem("Exponential", 3);
-    distortionModeBox.addItem("Bit Crush", 4);
-    distortionModeBox.addItem("Wavefold", 5);
-    addAndMakeVisible(distortionModeBox);
+    //–– Mode dropdown ––
+    modeBox.addItemList(processorRef.parameters.getParameter("DISTORTION_MODE")->getAllValueStrings(), 1);
+    addAndMakeVisible(modeBox);
+    modeBox.setJustificationType(juce::Justification::centred);
 
-    // Attach ComboBox to ValueTreeState
-    distortionModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        audioProcessor.parameters, "DISTORTION_MODE", distortionModeBox);
+       addAndMakeVisible(modeLabel);
+       modeLabel.setText("Mode", juce::dontSendNotification);
+       modeLabel.setJustificationType(juce::Justification::centred);
 
-    setSize (600, 400);
+    //–– Attach controls to the parameters ––
+    distortionAttach = std::make_unique<SliderAttachment>(
+        processorRef.parameters, "DISTORTION", distortionSlider);
+    dryWetAttach = std::make_unique<SliderAttachment>(
+        processorRef.parameters, "DRYWET", dryWetSlider);
+    modeAttach = std::make_unique<ChoiceAttachment>(
+        processorRef.parameters, "DISTORTION_MODE", modeBox);
+
+    setSize(360, 240);
 }
 
-ZLDistortV2AudioProcessorEditor::~ZLDistortV2AudioProcessorEditor()
+ZLDistortV2AudioProcessorEditor::~ZLDistortV2AudioProcessorEditor() = default;
+
+void ZLDistortV2AudioProcessorEditor::paint(juce::Graphics& g)
 {
-}
+    g.fillAll(juce::Colour::fromRGB(20, 20, 20));
+    
+    // 2) set up a linear gradient from top‑left to bottom‑right
+    juce::Colour c1(30, 30, 30), c2(10, 10, 10);
+    juce::ColourGradient gradient(c1,
+        0.0f, 0.0f,          // start point
+        c2,
+        (float)getWidth(),
+        (float)getHeight(), // end point
+        false);              // not radial
 
-//==============================================================================
-void ZLDistortV2AudioProcessorEditor::paint (juce::Graphics& g)
-{
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
+    g.setGradientFill(gradient);
 
-    g.setColour (juce::Colours::white);
-    g.setFont (juce::FontOptions (25.0f));
-    g.drawFittedText ("DISTORTION", 0, 70, getWidth(), 20, juce::Justification::centred, 1);
+    // 3) fill the entire background with our gradient
+    g.fillRect(getLocalBounds());
 
-    g.setFont(juce::Font(15.0f));
-
-    // "Dry" label to the left of Dry/Wet slider
-    g.drawFittedText("Dry", 50, 250, 50, 20, juce::Justification::centred, 1);
-
-    // "Wet" label to the right of Dry/Wet slider
-    g.drawFittedText("Wet", getWidth() - 100, 250, 50, 20, juce::Justification::centred, 1);
+    //draw ZL distort label 
+    g.setColour(juce::Colours::white);
+    g.setFont(25.0f);
+    g.drawFittedText("ZL-Distort",
+        getLocalBounds().removeFromTop(25),
+        juce::Justification::centred, 1);
 }
 
 void ZLDistortV2AudioProcessorEditor::resized()
 {
-    // This is generally where you'll want to lay out the positions of any
-    // subcomponents in your editor..
-    
-    // 📏 Position the sliders and dropdown
-    distortionSlider.setBounds(50, 50, 300, 40);
-    dryWetSlider.setBounds(50, 110, 300, 40);
-    distortionModeBox.setBounds(235, 300, 120, 30); // Dropdown positioning
+    // overall margin
+    auto area = getLocalBounds().reduced(15);
 
-   // Position the sliders
-    distortionSlider.setBounds(50, 100, getWidth() - 100, 50); // Distortion Amount
-    dryWetSlider.setBounds(50, 200, getWidth() - 100, 50);     // Dry/Wet Mix
+    // reserve 25px for the title at the very top
+    area.removeFromTop(25);
+
+    // top zone for knobs (100px high)
+    auto knobsArea = area.removeFromTop(100);
+
+    constexpr int kW = 100, kH = 100;
+
+    // Distortion knob on the left edge
+    distortionSlider.setBounds(knobsArea.getX(), knobsArea.getY(), kW, kH);
+    distortionLabel.setBounds(distortionSlider.getX(),
+        distortionSlider.getY() - 20,
+        kW, 20);
+    distortionLabel.setJustificationType(juce::Justification::centred);
+
+    // Dry/Wet knob on the right edge
+    dryWetSlider.setBounds(knobsArea.getRight() - kW,
+        knobsArea.getY(), kW, kH);
+    dryWetLabel.setBounds(dryWetSlider.getX(),
+        dryWetSlider.getY() - 20,
+        kW, 20);
+    dryWetLabel.setJustificationType(juce::Justification::centred);
+
+    // bottom zone for combo box
+    auto bottom = area.removeFromBottom(50);
+
+    // center the combo
+    modeBox.setBounds(bottom.withSizeKeepingCentre(150, 30));
+    modeLabel.setBounds(modeBox.getX(),
+        modeBox.getY() - 40,
+        modeBox.getWidth(),
+        20);
 }

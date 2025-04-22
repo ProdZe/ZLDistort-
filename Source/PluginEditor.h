@@ -1,43 +1,30 @@
-﻿/*
-  ==============================================================================
+﻿#pragma once
 
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
-#pragma once
-
-#include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include <JuceHeader.h>
 
-//==============================================================================
-/**
-*/
-class ZLDistortV2AudioProcessorEditor  : public juce::AudioProcessorEditor
+class ZLDistortV2AudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
-    ZLDistortV2AudioProcessorEditor (ZLDistortV2AudioProcessor&);
+    ZLDistortV2AudioProcessorEditor(ZLDistortV2AudioProcessor&);
     ~ZLDistortV2AudioProcessorEditor() override;
 
-    //==============================================================================
-    void paint (juce::Graphics&) override;
+    void paint(juce::Graphics&) override;
     void resized() override;
 
 private:
-    // This reference is provided as a quick way for your editor to
-    // access the processor object that created it.
-    ZLDistortV2AudioProcessor& audioProcessor;
+    ZLDistortV2AudioProcessor& processorRef;
 
-    juce::Slider distortionSlider;
-    juce::Slider dryWetSlider;
+    juce::Slider        distortionSlider, dryWetSlider;
+    juce::Label         distortionLabel, dryWetLabel;
+    juce::ComboBox      modeBox;
+    juce::Label         modeLabel;
 
-    // 🔄 ComboBox for Distortion Modes (Dropdown)
-    juce::ComboBox distortionModeBox;
+    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ChoiceAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
 
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> distortionAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> dryWetAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> distortionModeAttachment;
+    std::unique_ptr<SliderAttachment>      distortionAttach, dryWetAttach;
+    std::unique_ptr<ChoiceAttachment>      modeAttach;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ZLDistortV2AudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ZLDistortV2AudioProcessorEditor)
 };
