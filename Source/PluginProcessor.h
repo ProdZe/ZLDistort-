@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <JuceHeader.h>
 #include <juce_dsp/juce_dsp.h>
@@ -18,6 +18,15 @@ public:
         Wavefold,
         Harmonic
     };
+    // new parameters
+    std::atomic<float>* rootNoteParam = nullptr;   // MIDI note number 0–127
+    std::atomic<float>* scaleMinorParam = nullptr;   // 0 = major, 1 = minor
+    std::atomic<float>* numBandsParam = nullptr;   // e.g. 1–20 bands
+    std::atomic<float>* bandQParam = nullptr;   // 0.1–10.0
+    std::atomic<float>* softClipParam = nullptr;   // 0 = off, 1 = on
+
+        // soft‑clip processor
+    juce::dsp::Limiter<float> softLimiter;
 
     void prepareToPlay(double, int) override;
     void releaseResources() override;

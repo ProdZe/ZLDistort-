@@ -16,6 +16,11 @@ ZLDistortV2AudioProcessor::ZLDistortV2AudioProcessor()
 #endif
     parameters(*this, nullptr, "PARAMETERS", createParameterLayout())
 {
+    rootNoteParam = parameters.getRawParameterValue("ROOT_NOTE");
+    scaleMinorParam = parameters.getRawParameterValue("SCALE_MINOR");
+    numBandsParam = parameters.getRawParameterValue("NUM_BANDS");
+    bandQParam = parameters.getRawParameterValue("BAND_Q");
+    softClipParam = parameters.getRawParameterValue("SOFT_CLIP");
 }
 
 ZLDistortV2AudioProcessor::~ZLDistortV2AudioProcessor() {}
@@ -57,6 +62,9 @@ void ZLDistortV2AudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
             });
         filters.back().prepare(spec);
     }
+    softLimiter.reset();
+    softLimiter.prepare({ sampleRate, (juce::uint32)samplesPerBlock, (juce::uint32)getTotalNumInputChannels() });
+
 }
 
 void ZLDistortV2AudioProcessor::releaseResources() {}
@@ -135,8 +143,17 @@ void ZLDistortV2AudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
             }
 
             data[s] = dry * (1.0f - dryWet) + shaped * dryWet;
+            
+            if (softClipParam->load() > 0.5f)
+            {
+                juce::dsp::AudioBlock<float> block(buffer);
+                juce::dsp::ProcessContextReplacing<float> ctx(block);
+                softLimiter.process(ctx);
+            }
+     
         }
     }
+
 }
 
 //==============================================================================
@@ -151,16 +168,61 @@ juce::AudioProcessorValueTreeState::ParameterLayout ZLDistortV2AudioProcessor::c
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
+    // — core distortion controls —
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "DISTORTION", "Distortion", 0.0f, 10.0f, 5.0f));
+        "DISTORTION",      // ID
+        "Distortion",      // name
+        0.0f,              // min
+        10.0f,             // max
+        5.0f));            // default
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "DRYWET", "Dry/Wet", 0.0f, 1.0f, 0.5f));
+        "DRYWET",          // ID
+        "Dry/Wet",         // name
+        0.0f,              // min
+        1.0f,              // max
+        0.5f));            // default
 
     params.push_back(std::make_unique<juce::AudioParameterChoice>(
-        "DISTORTION_MODE", "Distortion Mode",
-        juce::StringArray{ "Hard Clip", "Foldback", "Exponential", "Bit Crush", "Wavefold", "Harmonic" },
-        0));
+        "DISTORTION_MODE", // ID
+        "Distortion Mode", // name
+        juce::StringArray{ "Hard Clip", "Foldback", "Exponential",
+                           "Bit Crush", "Wavefold", "Harmonic" },
+        0));               // default index
+
+    // — harmonic‑mode extras —
+
+    // NOTE: only one ROOT_NOTE parameter is created here
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "ROOT_NOTE",       // ID
+        "Root Note",       // name
+        juce::StringArray{ "C", "C#", "D", "D#", "E", "F",
+                           "F#", "G", "G#", "A", "A#", "B" },
+        0));               // default = C
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "SCALE_MINOR",     // ID
+        "Minor Scale",     // name
+        false));           // default = major
+
+    params.push_back(std::make_unique<juce::AudioParameterInt>(
+        "NUM_BANDS",       // ID
+        "Number of Bands", // name
+        1,                 // min
+        20,                // max
+        10));              // default
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "BAND_Q",          // ID
+        "Band Q",          // name
+        0.1f,              // min
+        10.0f,             // max
+        1.0f));            // default
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "SOFT_CLIP",       // ID
+        "Soft Clip Limiter",
+        true));            // default = on
 
     return { params.begin(), params.end() };
 }

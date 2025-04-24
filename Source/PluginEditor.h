@@ -26,5 +26,16 @@ private:
     std::unique_ptr<SliderAttachment>      distortionAttach, dryWetAttach;
     std::unique_ptr<ChoiceAttachment>      modeAttach;
 
+
+    // harmonic‑mode only controls
+    juce::ComboBox    rootNoteBox, scaleTypeBox;
+    juce::Slider      numBandsSlider, qSlider;
+    juce::ToggleButton softClipToggle;
+    juce::Label       rootNoteLabel, scaleTypeLabel, numBandsLabel, qLabel, softClipLabel;
+
+    using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    std::unique_ptr<Attachment>   numBandsAttachment, qAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> softClipAttachment;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ZLDistortV2AudioProcessorEditor)
 };
